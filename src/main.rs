@@ -1,5 +1,5 @@
-// #![feature(proc_macro_hygiene)]
-// #![feature(stmt_expr_attributes)]
+#![feature(proc_macro_hygiene)]
+#![feature(stmt_expr_attributes)]
 
 // use ::std::ops::Add;
 // use ::std::option::Option;
@@ -157,9 +157,13 @@ fn print_dbm(dbm: &Vec<Vec<i64>>) {
     for row in dbm {
         print!("[ ");
         for elem in row {
-            print!("{:2}, ", elem);
+            if *elem == INF {
+                print!("INF, ");
+            } else {
+                print!("{:3}, ", elem);
+            }
         }
-        println!(" ]");
+        println!("]");
     }
 }
 
@@ -206,28 +210,44 @@ fn main() {
 
     let mut rl = rustyline::DefaultEditor::new().unwrap();
     while true {
+        print_dbm(&dbm);
         print_clock_region(&dbm);
         println!("");
         println!(" 1. up");
         println!(" 2. down");
         println!(" 3. free");
+        println!(" 4. reset");
         println!(" q. exit");
         println!("");
         match rl.readline("> ") {
             Ok(s) => {
-                if s == "1" {
+                if &s == "1" {
                     println!("[*] UP");
                     up(&mut dbm, n);
-                } else if s == "2" {
+                } else if &s == "2" {
                     println!("[*] DOWN");
                     down(&mut dbm, n);
-                } else if s == "3 x" {
+                } else if &s == "3 x" {
                     println!("[*] FREE x");
                     free(&mut dbm, n, xidx);
-                } else if s == "3 y" {
+                } else if &s == "3 y" {
                     println!("[*] FREE y");
                     free(&mut dbm, n, yidx);
-                } else if s == "q" {
+                } else if &s[0..3] == "4 x" {
+                    if let Ok(m) = i64::from_str_radix(&s[4..], 10) {
+                        println!("[*] RESET x {m}");
+                        reset(&mut dbm, n, xidx, m);
+                    } else {
+                        println!("failed to parse int.");
+                    }
+                } else if &s[0..3] == "4 y" {
+                    if let Ok(m) = i64::from_str_radix(&s[4..], 10) {
+                        println!("[*] RESET y {m}");
+                        reset(&mut dbm, n, yidx, m);
+                    } else {
+                        println!("failed to parse int.");
+                    }
+                } else if &s == "q" {
                     println!("Exit..");
                     break;
                 } else {
@@ -764,6 +784,12 @@ fn free(d: &mut Vec<Vec<i64>>, n: usize, x: usize) {
     };
 }
 
+fn reset(d: &mut Vec<Vec<i64>>, n: usize, x: usize, m: i64) {
+    for i in 0..n {
+        d[x][i] = d[0][i] + m;
+        d[i][x] = d[i][0] - m;
+    }
+}
 
 
 
