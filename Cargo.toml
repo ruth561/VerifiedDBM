@@ -1,0 +1,9 @@
+[package]
+name = "dbm-creusot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+creusot-contracts = { path = "/home/ruth/creusot/creusot-contracts" }
+textplots = "0.8.6"
+rustyline = "14.0.0"
