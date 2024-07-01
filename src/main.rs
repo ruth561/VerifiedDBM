@@ -434,36 +434,6 @@ fn min_col_int(d: &Vec<Vec<i64>>, n: usize, i: usize, l: usize, u: usize, x: i64
     ans
 }
 
-// i!=0 && j!=0 && k==0のケースで使用する補題
-#[requires(is_canonical(d.deep_model(), n@))]
-#[ensures(forall<j:Int> 1 <= j && j < n@ ==> d.deep_model()[0][j] <= 0)]
-#[ensures(forall<j:Int, l:Int> 1 <= j && j < n@ && 1 <= l && l < n@ ==> d.deep_model()[0][j] <= d.deep_model()[l][j])]
-#[ensures(
-    forall<i:Int, j:Int, k:Int>
-        1 <= i && i < n@ &&
-        1 <= j && j < n@ &&
-        k == 0 ==>
-        triangle_inequality(d.deep_model(), n@, i, j, 0) &&
-        (d.deep_model()[i][j] != INF@ ==> d.deep_model()[i][j] <= d.deep_model()[i][0] + d.deep_model()[0][j])
-)]
-fn lem_for_down(d: &Vec<Vec<i64>>, n: usize) {
-    proof_assert! {
-        forall<j:Int, l:Int>
-            1 <= j && j < n@ &&
-            1 <= l && l < n@ ==>
-            triangle_inequality(d.deep_model(), n@, 0, j, l) &&
-            (d.deep_model()[0][j] != INF@ ==> d.deep_model()[0][j] <= d.deep_model()[0][l] + d.deep_model()[l][j])
-    }
-    proof_assert! {
-        forall<j:Int, l:Int>
-            1 <= j && j < n@ &&
-            1 <= l && l < n@ ==>
-            d.deep_model()[0][j] != INF@ &&
-            d.deep_model()[0][j] <= d.deep_model()[0][l] + d.deep_model()[l][j]
-            // d.deep_model()[0][j] <= d.deep_model()[l][j]
-    }
-}
-
 // downの処理の前後におけるDBMの関係性を示す述語
 // 3つの領域に分けて値の変動を記憶している
 #[predicate]
@@ -636,6 +606,73 @@ fn lem_for_down_011(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize) {
     lem_for_down_011_1(&d, &d_old, n);
 }
 
+// i!=0 && j!=0 && k==0のケースで使用する補題
+#[requires(is_canonical(d.deep_model(), n@))]
+#[ensures(forall<j:Int> 1 <= j && j < n@ ==> d.deep_model()[0][j] <= 0)]
+#[ensures(forall<j:Int, l:Int> 1 <= j && j < n@ && 1 <= l && l < n@ ==> d.deep_model()[0][j] <= d.deep_model()[l][j])]
+#[ensures(
+    forall<i:Int, j:Int, k:Int>
+        1 <= i && i < n@ &&
+        1 <= j && j < n@ &&
+        k == 0 ==>
+        triangle_inequality(d.deep_model(), n@, i, j, 0) &&
+        (d.deep_model()[i][j] != INF@ ==> d.deep_model()[i][j] <= d.deep_model()[i][0] + d.deep_model()[0][j])
+)]
+fn lem_for_lem_for_down_110(d: &Vec<Vec<i64>>, n: usize) {
+    proof_assert! {
+        forall<j:Int, l:Int>
+            1 <= j && j < n@ &&
+            1 <= l && l < n@ ==>
+            triangle_inequality(d.deep_model(), n@, 0, j, l) &&
+            (d.deep_model()[0][j] != INF@ ==> d.deep_model()[0][j] <= d.deep_model()[0][l] + d.deep_model()[l][j])
+    }
+    proof_assert! {
+        forall<j:Int, l:Int>
+            1 <= j && j < n@ &&
+            1 <= l && l < n@ ==>
+            d.deep_model()[0][j] != INF@ &&
+            d.deep_model()[0][j] <= d.deep_model()[0][l] + d.deep_model()[l][j]
+            // d.deep_model()[0][j] <= d.deep_model()[l][j]
+    }
+}
+
+// downで使われる補題（番号はi,j,kが0か0でないかを意味しており、今回はi!=0, j!=0, k!=0のケースに関する補題）
+#[requires(is_canonical(d_old.deep_model(), n@))]
+#[requires(is_dbm(d.deep_model(), n@))]
+#[requires(down_precondition(d, d_old, n))]
+#[ensures(
+    forall<i:Int, j:Int, k:Int>
+            1 <= i && i < n@ &&
+            1 <= j && j < n@ &&
+            k == 0 ==>
+            triangle_inequality(d.deep_model(), n@, i, j, k)
+)]
+fn lem_for_down_110(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize) {
+    lem_for_lem_for_down_110(&d_old, n); // なぜか補題にしないと証明できないやつ（やってることはかなり簡単なのになんでできないのか、、？）
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            1 <= i && i < n@ &&
+            1 <= j && j < n@ &&
+            k == 0 ==>
+            d_old.deep_model()[0][j] <= 0 &&
+            (forall<l:Int> 1 <= l && l < n@ ==> d_old.deep_model()[0][j] <= d.deep_model()[l][j]) &&
+            d_old.deep_model()[0][j] <= d.deep_model()[0][j] // すばらしい！！！（この補題は割と重そうなのでproof_assertを分ける）
+    }
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            1 <= i && i < n@ &&
+            1 <= j && j < n@ &&
+            k == 0 ==>
+            d_old.deep_model()[0][j] <= d.deep_model()[0][j] &&
+            (d_old.deep_model()[i][j] != INF@ ==> d_old.deep_model()[i][j] <= d_old.deep_model()[i][0] + d_old.deep_model()[0][j]) &&
+            d.deep_model()[i][j] == d_old.deep_model()[i][j] &&
+            d.deep_model()[i][0] == d_old.deep_model()[i][0] &&
+            (d.deep_model()[i][j] != INF@ ==> d.deep_model()[i][j] <= d.deep_model()[i][0] + d_old.deep_model()[0][j]) &&
+            (d.deep_model()[i][j] != INF@ ==> d.deep_model()[i][j] <= d.deep_model()[i][0] + d.deep_model()[0][j]) &&
+            triangle_inequality(d.deep_model(), n@, i, j, k)
+    }
+}
+
 // downで使われる補題（番号はi,j,kが0か0でないかを意味しており、今回はi!=0, j!=0, k!=0のケースに関する補題）
 #[requires(is_canonical(d_old.deep_model(), n@))]
 #[requires(is_dbm(d.deep_model(), n@))]
@@ -686,11 +723,35 @@ fn lem_for_down_111(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize) {
 #[ensures(
     forall<i:Int, j:Int, k:Int>
         1 <= i && i < n@ &&
-        j == 0 &&
+        1 <= j && j < n@ &&
         k == 0 ==>
         triangle_inequality(d.deep_model(), n@, i, j, k)
 )]
-fn lem_for_down_100(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize) {}
+fn lem_for_down_100(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize) {
+    // lem_for_down(&d_old, n); // なぜか補題にしないと証明できないやつ（やってることはかなり簡単なのになんでできないのか、、？）
+    // proof_assert! {
+    //     forall<i:Int, j:Int, k:Int>
+    //         1 <= i && i < n@ &&
+    //         1 <= j && j < n@ &&
+    //         k == 0 ==>
+    //         d_old.deep_model()[0][j] <= 0 &&
+    //         (forall<l:Int> 1 <= l && l < n@ ==> d_old.deep_model()[0][j] <= d.deep_model()[l][j]) &&
+    //         d_old.deep_model()[0][j] <= d.deep_model()[0][j] // すばらしい！！！（この補題は割と重そうなのでproof_assertを分ける）
+    // }
+    // proof_assert! {
+    //     forall<i:Int, j:Int, k:Int>
+    //         1 <= i && i < n@ &&
+    //         1 <= j && j < n@ &&
+    //         k == 0 ==>
+    //         d_old.deep_model()[0][j] <= d.deep_model()[0][j] &&
+    //         (d_old.deep_model()[i][j] != INF@ ==> d_old.deep_model()[i][j] <= d_old.deep_model()[i][0] + d_old.deep_model()[0][j]) &&
+    //         d.deep_model()[i][j] == d_old.deep_model()[i][j] &&
+    //         d.deep_model()[i][0] == d_old.deep_model()[i][0] &&
+    //         (d.deep_model()[i][j] != INF@ ==> d.deep_model()[i][j] <= d.deep_model()[i][0] + d_old.deep_model()[0][j]) &&
+    //         (d.deep_model()[i][j] != INF@ ==> d.deep_model()[i][j] <= d.deep_model()[i][0] + d.deep_model()[0][j]) &&
+    //         triangle_inequality(d.deep_model(), n@, i, j, k)
+    // }
+}
 
 
 
@@ -794,10 +855,8 @@ fn down(d: &mut Vec<Vec<i64>>, n: usize) {
     
     // i!=0
     //   i!=0 && j==0
-    //     i!=0 && j==0 && k==0
-    lem_for_down_100(&d, &d_old, n);
-    //   i!=0 && j!=0 && k!=0
-    lem_for_down_111(&d, &d_old, n);
+    lem_for_down_100(&d, &d_old, n); // i!=0 && j==0 && k==0
+    lem_for_down_111(&d, &d_old, n); // i!=0 && j!=0 && k!=0
     //     i!=0 && j==0 && k!=0
     proof_assert! {
         forall<i:Int, j:Int, k:Int>
@@ -806,30 +865,7 @@ fn down(d: &mut Vec<Vec<i64>>, n: usize) {
             1 <= k && k < n@ ==>
             triangle_inequality(d.deep_model(), n@, i, j, k)
     }
-    //   i!=0 && j!=0 && k==0
-    lem_for_down(&d_old, n); // なぜか補題にしないと証明できないやつ（やってることはかなり簡単なのになんでできないのか、、？）
-    proof_assert! {
-        forall<i:Int, j:Int, k:Int>
-            1 <= i && i < n@ &&
-            1 <= j && j < n@ &&
-            k == 0 ==>
-            d_old.deep_model()[0][j] <= 0 &&
-            (forall<l:Int> 1 <= l && l < n@ ==> d_old.deep_model()[0][j] <= d.deep_model()[l][j]) &&
-            d_old.deep_model()[0][j] <= d.deep_model()[0][j] // すばらしい！！！（この補題は割と重そうなのでproof_assertを分ける）
-    }
-    proof_assert! {
-        forall<i:Int, j:Int, k:Int>
-            1 <= i && i < n@ &&
-            1 <= j && j < n@ &&
-            k == 0 ==>
-            d_old.deep_model()[0][j] <= d.deep_model()[0][j] &&
-            (d_old.deep_model()[i][j] != INF@ ==> d_old.deep_model()[i][j] <= d_old.deep_model()[i][0] + d_old.deep_model()[0][j]) &&
-            d.deep_model()[i][j] == d_old.deep_model()[i][j] &&
-            d.deep_model()[i][0] == d_old.deep_model()[i][0] &&
-            (d.deep_model()[i][j] != INF@ ==> d.deep_model()[i][j] <= d.deep_model()[i][0] + d_old.deep_model()[0][j]) &&
-            (d.deep_model()[i][j] != INF@ ==> d.deep_model()[i][j] <= d.deep_model()[i][0] + d.deep_model()[0][j]) &&
-            triangle_inequality(d.deep_model(), n@, i, j, k)
-    }
+    lem_for_down_110(&d, &d_old, n); // i!=0 && j!=0 && k==0
 
     lem_for_down2(&d, n);
     proof_assert! {
