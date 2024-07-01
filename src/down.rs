@@ -348,14 +348,14 @@ fn lem_for_down_111(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize) {
             1 <= k && k < n@ ==>
             d.deep_model()[i][j] == d_old.deep_model()[i][j] &&
             d.deep_model()[i][k] == d_old.deep_model()[i][k] &&
-            d.deep_model()[k][j] == d_old.deep_model()[k][j] &&
-            triangle_inequality(d_old.deep_model(), n@, i, j, k)
+            d.deep_model()[k][j] == d_old.deep_model()[k][j]
     }
     proof_assert! {
         forall<i:Int, j:Int, k:Int>
             1 <= i && i < n@ &&
             1 <= j && j < n@ &&
             1 <= k && k < n@ ==>
+            triangle_inequality(d_old.deep_model(), n@, i, j, k) &&
             (d.deep_model()[i][j] == INF@ ==> d.deep_model()[i][k] == INF@ || d.deep_model()[k][j] == INF@) &&
             (d.deep_model()[i][j] != INF@ ==> d.deep_model()[i][j] <= d.deep_model()[i][k] + d.deep_model()[k][j])
     }
