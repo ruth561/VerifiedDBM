@@ -392,50 +392,41 @@ fn min_vec(v: &Vec<i64>, x: i64) -> i64 {
     ans
 }
 
+// - n: the size of matrix
+// - i: the number of column
+// - l: low
+// - u: upper
+// - x: default value
+//
+// - result: min{ x, d[l][i], d[l+1][i], ... , d[u-1][i] }
 #[logic]
-#[variant(j)]
+#[variant(u - l)]
 #[requires(is_dbm(d, n))]
-#[requires(0 <= i && i <  n)]
-#[requires(0 <  j && j <= n)]
-#[ensures(forall<k:Int> 0 <= k && k < j ==> result <= d[k][i])]
-#[ensures(exists<k:Int> 0 <= k && k < j &&  result == d[k][i])]
-fn min_col_int_log(d: Seq<Seq<Int>>, n: Int, i: Int, j:Int) -> Int {
+#[requires(0 <= i && i <  n)] // column
+#[requires(0 <= l && l <= u && u <= n)] // row range (=[l, u)) 
+#[ensures(result <= x && forall<j:Int> l <= j && j < u ==> result <= d[j][i])]
+#[ensures(result == x || exists<j:Int> l <= j && j < u &&  result == d[j][i])]
+fn min_col_int_log(d: Seq<Seq<Int>>, n: Int, i: Int, l:Int, u: Int, x: Int) -> Int {
     pearlite! {
-        if j == 1 {  // 要素数がちょうど1のとき
-            d[0][i]
-        } else { // 要素数が2以上のとき
-            d[j-1][i].min(min_col_int_log(d, n, i, j-1))
+        if l == u { // 要素数0のとき
+            x
+        } else { // l < u
+            proof_assert! { l < u };
+            d[u - 1][i].min(min_col_int_log(d, n, i, l, u-1, x))
         }
     }
-}
-
-// DBMの「down」オペレーションでは行列の列に対して最小値を求める操作が使われる。
-// そのため、行列の列方向での最小値を計算するlogic関数をここで定義する。
-// 
-// 仕様：DBM dの第i行目の最小値を返す
-//
-// 引数
-// d: 2次元配列
-// n: 行列のサイズ（n x n行列）
-// i: 最小値を計算する行番号
-#[logic]
-#[requires(is_dbm(d, n))]
-#[requires(0 <= i && i < n)]
-#[ensures(forall<j:Int> 0 <= j && j < n ==> result <= d[j][i])]
-#[ensures(exists<j:Int> 0 <= j && j < n &&  result == d[j][i])]
-fn min_col_log(d: Seq<Seq<Int>>, n: Int, i: Int) -> Int {
-    pearlite! { min_col_int_log(d, n, i, n) }
 }
 
 // DBMの第i行目の最小値を返す関数
 // つまり min{ d[0][i], d[1][i], ... , d[n-1][i] } を返す
 #[requires(is_dbm(d.deep_model(), n@))]
-#[requires(0 <= i@ && i@ < n@)]
-#[ensures(result@ == min_col_log(d.deep_model(), n@, i@))]
-fn min_col(d: &Vec<Vec<i64>>, n: usize, i: usize) -> i64 {
-    let mut ans = d[0][i];
-    #[invariant(ans@ == min_col_int_log(d.deep_model(), n@, i@, 1+produced.len()))]
-    for j in 1..n {
+#[requires(0 <= i@ && i@ <  n@)] // column
+#[requires(0 <= l@ && l@ <= u@ && u@ <= n@)] // row range (=[l, u)) 
+#[ensures(result@ == min_col_int_log(d.deep_model(), n@, i@, l@, u@, x@))]
+fn min_col_int(d: &Vec<Vec<i64>>, n: usize, i: usize, l: usize, u: usize, x: i64) -> i64 {
+    let mut ans = x;
+    #[invariant(ans@ == min_col_int_log(d.deep_model(), n@, i@, l@, l@+produced.len(), x@))]
+    for j in l..u {
         if d[j][i] < ans {
             ans = d[j][i];
         }
@@ -443,44 +434,36 @@ fn min_col(d: &Vec<Vec<i64>>, n: usize, i: usize) -> i64 {
     ans
 }
 
-#[requires(
-    forall<i:Int, j:Int, k:Int>
-        0 < j && j < n@ &&
-        0 < k && k < n@ &&
-        d.deep_model()[0][k] != 0 ==>
-        exists<l:Int>
-            0 < l && l < n@ &&
-            d.deep_model()[0][k] == d.deep_model()[l][k] &&
-            d.deep_model()[0][j] <= d.deep_model()[l][j] &&
-            triangle_inequality(d.deep_model(), n@, l, j, k) &&
-            (d.deep_model()[0][j] == INF@ ==> d.deep_model()[l][j] == INF@) &&
-            (d.deep_model()[l][j] == INF@ ==> d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@) &&
-            (d.deep_model()[0][j] == INF@ ==> ((d.deep_model()[l][j] == INF@) && (d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@))) &&
-            (d.deep_model()[0][j] == INF@ ==> (((d.deep_model()[l][j] == INF@) && (d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@))  ==> (d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@)))
-)]
+// i!=0 && j!=0 && k==0のケースで使用する補題
+#[requires(is_canonical(d.deep_model(), n@))]
+#[ensures(forall<j:Int> 1 <= j && j < n@ ==> d.deep_model()[0][j] <= 0)]
+#[ensures(forall<j:Int, l:Int> 1 <= j && j < n@ && 1 <= l && l < n@ ==> d.deep_model()[0][j] <= d.deep_model()[l][j])]
 #[ensures(
     forall<i:Int, j:Int, k:Int>
-        0 < j && j < n@ &&
-        0 < k && k < n@ &&
-        d.deep_model()[0][k] != 0 ==>
-        exists<l:Int>
-            0 < l && l < n@ &&
-            d.deep_model()[0][k] == d.deep_model()[l][k] &&
-            d.deep_model()[0][j] <= d.deep_model()[l][j] &&
-            triangle_inequality(d.deep_model(), n@, l, j, k) &&
-            (d.deep_model()[0][j] == INF@ ==> d.deep_model()[l][j] == INF@) &&
-            (d.deep_model()[l][j] == INF@ ==> d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@) && // the case of INF
-            (d.deep_model()[0][j] == INF@ ==> ((d.deep_model()[l][j] == INF@) && (d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@))) &&
-            (d.deep_model()[0][j] == INF@ ==> (((d.deep_model()[l][j] == INF@) && (d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@))  ==> (d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@))) &&
-            (d.deep_model()[0][j] == INF@ ==> ((d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@))) // ここだけなぜか証明できない、、
+        1 <= i && i < n@ &&
+        1 <= j && j < n@ &&
+        k == 0 ==>
+        triangle_inequality(d.deep_model(), n@, i, j, 0) &&
+        (d.deep_model()[i][j] != INF@ ==> d.deep_model()[i][j] <= d.deep_model()[i][0] + d.deep_model()[0][j])
 )]
-#[ensures(
-    forall<i:Int, j:Int, k:Int>
-        0 < j && j < n@ &&
-        0 < k && k < n@ &&
-        d.deep_model()[0][k] != 0 ==>
-        d.deep_model()[0][j] == INF@ ==> ((d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@)))]
-fn lem_for_down(d: &Vec<Vec<i64>>, n: usize) {}
+fn lem_for_down(d: &Vec<Vec<i64>>, n: usize) {
+    proof_assert! {
+        forall<j:Int, l:Int>
+            1 <= j && j < n@ &&
+            1 <= l && l < n@ ==>
+            triangle_inequality(d.deep_model(), n@, 0, j, l) &&
+            (d.deep_model()[0][j] != INF@ ==> d.deep_model()[0][j] <= d.deep_model()[0][l] + d.deep_model()[l][j])
+    }
+    proof_assert! {
+        forall<j:Int, l:Int>
+            1 <= j && j < n@ &&
+            1 <= l && l < n@ ==>
+            d.deep_model()[0][j] != INF@ &&
+            d.deep_model()[0][j] <= d.deep_model()[0][l] + d.deep_model()[l][j]
+            // d.deep_model()[0][j] <= d.deep_model()[l][j]
+    }
+}
+
 
 // [[  0,  m2, ... ,  mn], mi = min{0, x2i, x3i, ..., xni}
 //  [---, x22, ... , x2n],
@@ -492,45 +475,29 @@ fn lem_for_down(d: &Vec<Vec<i64>>, n: usize) {}
 fn down(d: &mut Vec<Vec<i64>>, n: usize) {
     let d_old = snapshot! { d };
 
-    // d[0][0]はどちみち0なので上書きする実装でもよい
-    // invariantの制約は3ブロックに分けて考える
-    //  - d[0][0]のブロック
-    //  - d[0][1..]のブロック
-    //  - d[1..][..]のブロック
+    // invariantの制約は3ブロックに分けて考える。
+    // AとCは変化しない部分
+    // [[  A,  B, ... ,  B],
+    //  [  A,  C, ... ,  C],
+    //  [  A,  C, ... ,  C],
+    //    ...
+    //  [  A,  C, ... ,  C]]
     #[invariant(is_dbm(d.deep_model(), n@))]
-    #[invariant(d.deep_model()[0][0] == d_old.deep_model()[0][0])]
-    #[invariant(forall<i:Int, j:Int> 1 <= i && i < n@ && 0 <= j && j < n@ ==> d.deep_model()[i][j] == d_old.deep_model()[i][j])]
-    #[invariant(forall<i:Int> 1 <= i && i < 1+produced.len() ==> d.deep_model()[0][i] == 0)]
+    // #[invariant((2 <= n@))]
+    // #[invariant(d@.len() == n@)]
+    // #[invariant(forall<i:Int> 0 <= i && i < n@ ==> d.deep_model()[i].len() == n@)]
+    // #[invariant(forall<i:Int> 0 <= i && i < n@ ==> d.deep_model()[i][i] == 0)]
+    // #[invariant(forall<i:Int> 0 <= i && i < n@ ==> d.deep_model()[0][i] <= 0)]
+    // #[invariant(forall<i:Int> 0 <= i && i < n@ ==> 0 <= d.deep_model()[i][0])]
+    // #[invariant(forall<i:Int, j:Int>
+    //     0 <= i && i < n@ &&
+    //     0 <= j && j < n@ ==>
+    //     (-BOUND@ < d.deep_model()[i][j] && d.deep_model()[i][j] < BOUND@) || d.deep_model()[i][j] == INF@)]
+    #[invariant(forall<i:Int> 0 <= i && i < n@ ==> d.deep_model()[i][0] == d_old.deep_model()[i][0])] // A
+    #[invariant(forall<i:Int> 1 <= i && i < 1+produced.len() ==> d.deep_model()[0][i] == min_col_int_log(d_old.deep_model(), n@, i, 1, n@, 0))] // B
+    #[invariant(forall<i:Int, j:Int> 1 <= i && i < n@ && 1 <= j && j < n@ ==> d.deep_model()[i][j] == d_old.deep_model()[i][j])] // C
     for i in 1..n {
-        d[0][i] = 0;
-    }
-
-    let d_mid = snapshot! { d };
-
-    // 一旦計算結果をバッファに書き出しておかないと証明が書けない
-    let mut v = Vec::<i64>::new();
-    v.push(0);
-    #[invariant(v@.len() == 1+produced.len())]
-    #[invariant(forall<i:Int> 1 <= i && i < 1+produced.len() ==> v.deep_model()[i] == min_col_log(d_mid.deep_model(), n@, i))]
-    for i in 1..n {
-        v.push(min_col(d, n, i));
-    }
-
-    #[invariant(is_dbm(d.deep_model(), n@))]
-    #[invariant(forall<i:Int> 1 <= i && i < 1+produced.len() ==> d.deep_model()[0][i] <= 0)]
-    #[invariant(d.deep_model()[0][0] == d_old.deep_model()[0][0])]
-    #[invariant(forall<i:Int, j:Int> 1 <= i && i < n@ && 0 <= j && j < n@ ==> d.deep_model()[i][j] == d_old.deep_model()[i][j])]
-    #[invariant(forall<i:Int> 1 <= i && i < 1+produced.len() ==> d.deep_model()[0][i] == min_col_log(d_mid.deep_model(), n@, i))]
-    for i in 1..n {
-        let tmp = v[i];
-
-        proof_assert! { exists<j:Int> 0 <= j && j < n@ && d_mid.deep_model()[j][i@] == tmp@ };
-        proof_assert! { (-BOUND@ < tmp@ && tmp@ < BOUND@) || tmp@ == INF@ };
-
-        d[0][i] = tmp;
-        proof_assert! { forall<j:Int> 1 <= j && j <= i@ ==> d.deep_model()[0][j] <= 0 };
-        proof_assert! { d.deep_model()[0][0] == 0 };
-        proof_assert! { d.deep_model()[0][i@] == min_col_log(d_mid.deep_model(), n@, i@) };
+        d[0][i] = min_col_int(&d, n, i, 1, n, 0);
     }
 
     // proof_assert! {
@@ -538,85 +505,234 @@ fn down(d: &mut Vec<Vec<i64>>, n: usize) {
     // };
 
     // おそらく当たり前だけど一応確認のためにassertしてるやつ
-    proof_assert! { d.deep_model()[0][0] == d_old.deep_model()[0][0] };
-    proof_assert! { forall<i:Int> 1 <= i && i < n@ ==> d.deep_model()[0][i] == min_col_log(d_mid.deep_model(), n@, i) };
-    proof_assert! { forall<i:Int, j:Int> 1 <= i && i < n@ && 0 <= j && j < n@ ==> d.deep_model()[i][j] == d_old.deep_model()[i][j] };
+    proof_assert! { forall<i:Int> 0 <= i && i < n@ ==> d.deep_model()[i][0] == d_old.deep_model()[i][0] };
+    proof_assert! { forall<i:Int> 1 <= i && i < n@ ==> d.deep_model()[0][i] == min_col_int_log(d_old.deep_model(), n@, i, 1, n@, 0) };
+    proof_assert! { forall<i:Int, j:Int> 1 <= i && i < n@ && 1 <= j && j < n@ ==> d.deep_model()[i][j] == d_old.deep_model()[i][j] };
 
-    proof_assert! { forall<i:Int> 1 <= i && i < n@ ==> d.deep_model()[0][i] <= 0 }; // これはis_dbmから直ちに言える？
-    proof_assert! { forall<i:Int, j:Int> 1 <= i && i < n@ && 1 <= j && j < n@ ==> d.deep_model()[0][i] <= d.deep_model()[j][i] };
+    // proof_assert! { forall<i:Int> 1 <= i && i < n@ ==> d.deep_model()[0][i] <= 0 }; // これはis_dbmから直ちに言える？
+    // proof_assert! { forall<i:Int, j:Int> 1 <= i && i < n@ && 1 <= j && j < n@ ==> d.deep_model()[0][i] <= d.deep_model()[j][i] };
 
     proof_assert! {
         forall<i:Int, j:Int, k:Int>
-            0 < i && i < n@ &&
-            0 < j && j < n@ &&
-            0 < k && k < n@ ==>
-            triangle_inequality(d_old.deep_model(), n@, i, j, k)
+            1 <= i && i < n@ &&
+            1 <= j && j < n@ &&
+            1 <= k && k < n@ ==>
+            triangle_inequality(d.deep_model(), n@, i, j, k)
     };
 
     // ここが通るときと通らないときがある、、
     // 該当箇所で新しくSplit VCを選択するとなぜか通るときがある、、
-    proof_assert! {
-        forall<i:Int, j:Int, k:Int>
-            0 < i && i < n@ &&
-            0 < j && j < n@ &&
-            0 < k && k < n@ ==>
-            d_mid.deep_model()[i][j] == d_old.deep_model()[i][j] &&
-            d_mid.deep_model()[j][k] == d_old.deep_model()[j][k] &&
-            d_mid.deep_model()[i][k] == d_old.deep_model()[i][k]
-    };
-    proof_assert! {
-        forall<i:Int, j:Int, k:Int>
-            0 < i && i < n@ &&
-            0 < j && j < n@ &&
-            0 < k && k < n@ ==>
-            triangle_inequality(d_mid.deep_model(), n@, i, j, k)
-    };
+    // proof_assert! {
+    //     forall<i:Int, j:Int, k:Int>
+    //         0 < i && i < n@ &&
+    //         0 < j && j < n@ &&
+    //         0 < k && k < n@ ==>
+    //         d_mid.deep_model()[i][j] == d_old.deep_model()[i][j] &&
+    //         d_mid.deep_model()[j][k] == d_old.deep_model()[j][k] &&
+    //         d_mid.deep_model()[i][k] == d_old.deep_model()[i][k]
+    // };
+    // proof_assert! {
+    //     forall<i:Int, j:Int, k:Int>
+    //         0 < i && i < n@ &&
+    //         0 < j && j < n@ &&
+    //         0 < k && k < n@ ==>
+    //         triangle_inequality(d_mid.deep_model(), n@, i, j, k)
+    // };
 
     // 場合分け
 
-    // i == 0
+    // i==0
+    //   i==0 && j!=0 && k!=0
+    //     i==0 && j!=0 && k!=0 && d[0][k]==0
     proof_assert! {
         forall<i:Int, j:Int, k:Int>
-            0 < j && j < n@ &&
-            0 < k && k < n@ &&
+            i == 0 &&
+            1 <= j && j < n@ &&
+            1 <= k && k < n@ &&
+            d.deep_model()[0][k] == 0 ==>
+            d.deep_model()[0][j] <= d.deep_model()[k][j] &&
+            triangle_inequality(d.deep_model(), n@, i, j, k)
+    };
+    //     i==0 && j!=0 && k!=0 && d[0][k]!=0
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            i == 0 &&
+            1 <= j && j < n@ &&
+            1 <= k && k < n@ &&
             d.deep_model()[0][k] != 0 ==>
-            exists<l:Int>
-                0 < l && l < n@ &&
+            (exists<l:Int>
+                1 <= l && l < n@ &&
                 d.deep_model()[0][k] == d.deep_model()[l][k] &&
+                triangle_inequality(d.deep_model(), n@, l, j, k) &&
                 d.deep_model()[0][j] <= d.deep_model()[l][j] &&
-                triangle_inequality(d.deep_model(), n@, l, j, k) && // e_{l,j} <= e_{l,k} + e_{k,j}
-                // d[l][j] <= d[0][k] + d[k][j] から d[l0[j] <= d[0][k] + d[k][j] を言いたい
-                (d.deep_model()[0][j] == INF@ ==> d.deep_model()[l][j] == INF@) &&
-                (d.deep_model()[l][j] == INF@ ==> d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@) && // the case of INF
-                (d.deep_model()[0][j] == INF@ ==> ((d.deep_model()[l][j] == INF@) && (d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@))) &&
-                (d.deep_model()[0][j] == INF@ ==> (((d.deep_model()[l][j] == INF@) && (d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@))  ==> (d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@)))
+                triangle_inequality(d.deep_model(), n@, i, j, k))
     };
-
-    lem_for_down(d, n);
-
+    //   i==0 && j==0 && k!=0
+    //     i==0 && j==0 && k!=0 && d[0][k] == 0
     proof_assert! {
         forall<i:Int, j:Int, k:Int>
-            0 < j && j < n@ &&
-            0 < k && k < n@ &&
-            d.deep_model()[0][k] != 0 ==>
-            d.deep_model()[0][j] == INF@ ==> ((d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@))
-    };
-
+            i == 0 &&
+            j == 0 &&
+            1 <= k && k < n@ &&
+            d.deep_model()[0][k] == 0 ==>
+            d.deep_model()[k][0] >= 0 &&
+            triangle_inequality(d.deep_model(), n@, i, j, k)
+    }
+    //     i==0 && j==0 && k!=0 && d[0][k] != 0
     proof_assert! {
         forall<i:Int, j:Int, k:Int>
-            0 < j && j < n@ &&
-            0 < k && k < n@ &&
+            i == 0 &&
+            j == 0 &&
+            1 <= k && k < n@ &&
             d.deep_model()[0][k] != 0 ==>
-            exists<l:Int>
-                0 < l && l < n@ &&
+            (exists<l:Int>
+                1 <= l && l < n@ &&
                 d.deep_model()[0][k] == d.deep_model()[l][k] &&
-                triangle_inequality(d.deep_model(), n@, l, j, k) && // e_{l,j} <= e_{l,k} + e_{k,j}
-                d.deep_model()[0][j] <= d.deep_model()[l][j] &&
-                // d[l][j] <= d[0][k] + d[k][j] から d[l0[j] <= d[0][k] + d[k][j] を言いたい
-                (d.deep_model()[l][j] != INF@ ==> d.deep_model()[l][j] <= d.deep_model()[0][k] + d.deep_model()[k][j]) && // the case of not INF
-                (d.deep_model()[l][j] != INF@ ==> d.deep_model()[0][j] <= d.deep_model()[0][k] + d.deep_model()[k][j]) &&
-                (d.deep_model()[l][j] != INF@ ==> d.deep_model()[0][j] != INF@)
+                triangle_inequality(d.deep_model(), n@, l, 0, k) &&
+                (d.deep_model()[l][0] == INF@ ==> d.deep_model()[l][k] == INF@ || d.deep_model()[k][0] == INF@) &&
+                (d.deep_model()[l][0] != INF@ ==> d.deep_model()[l][0] <= d.deep_model()[l][k] + d.deep_model()[k][0]) &&
+                0 <= d.deep_model()[l][0] &&
+                (d.deep_model()[l][0] == INF@ ==> 0 <= d.deep_model()[l][k] + d.deep_model()[k][0]) &&
+                (d.deep_model()[l][0] != INF@ ==> 0 <= d.deep_model()[l][k] + d.deep_model()[k][0]) &&
+                0 <= d.deep_model()[l][k] + d.deep_model()[k][0]
+            )
     };
+    proof_assert! { // proof_assertを分割すると証明器への負担が小さくなる。
+        forall<i:Int, j:Int, k:Int>
+            i == 0 &&
+            j == 0 &&
+            1 <= k && k < n@ &&
+            d.deep_model()[0][k] != 0 ==>
+            (exists<l:Int>
+                1 <= l && l < n@ &&
+                d.deep_model()[0][k] == d.deep_model()[l][k] &&
+                0 <= d.deep_model()[l][k] + d.deep_model()[k][0] &&
+                0 <= d.deep_model()[0][k] + d.deep_model()[k][0] &&
+                triangle_inequality(d.deep_model(), n@, i, j, k)
+            )
+    };
+    //   i==0 && j!=0 && k==0
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            i == 0 &&
+            1 <= j && j < n@ &&
+            k == 0 ==>
+            triangle_inequality(d.deep_model(), n@, i, j, k)
+    }
+
+    // i==0のケースを一旦まとめる
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            i == 0 &&
+            0 <= j && j < n@ &&
+            0 <= k && k < n@ ==>
+            triangle_inequality(d.deep_model(), n@, i, j, k)
+    }
+    
+    // i!=0
+    //   i!=0 && j==0 && k==0
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            1 <= i && i < n@ &&
+            j == 0 &&
+            k == 0 ==>
+            triangle_inequality(d.deep_model(), n@, i, j, k)
+    }
+    //   i!=0 && j!=0 && k!=0
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            1 <= i && i < n@ &&
+            1 <= j && j < n@ &&
+            1 <= k && k < n@ ==>
+            triangle_inequality(d.deep_model(), n@, i, j, k)
+    }
+    //   i!=0 && j!=0 && k==0
+    lem_for_down(&d_old, n); // なぜか補題にしないと証明できないやつ（やってることはかなり簡単なのになんでできないのか、、？）
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            1 <= i && i < n@ &&
+            1 <= j && j < n@ &&
+            k == 0 ==>
+            d_old.deep_model()[0][j] <= 0 &&
+            (forall<l:Int> 1 <= l && l < n@ ==> d_old.deep_model()[0][j] <= d.deep_model()[l][j]) &&
+            d_old.deep_model()[0][j] <= d.deep_model()[0][j] // すばらしい！！！（この補題は割と重そうなのでproof_assertを分ける）
+    }
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            1 <= i && i < n@ &&
+            1 <= j && j < n@ &&
+            k == 0 ==>
+            d_old.deep_model()[0][j] <= d.deep_model()[0][j] &&
+            (d_old.deep_model()[i][j] != INF@ ==> d_old.deep_model()[i][j] <= d_old.deep_model()[i][0] + d_old.deep_model()[0][j]) &&
+            d.deep_model()[i][j] == d_old.deep_model()[i][j] &&
+            d.deep_model()[i][0] == d_old.deep_model()[i][0] &&
+            (d.deep_model()[i][j] != INF@ ==> d.deep_model()[i][j] <= d.deep_model()[i][0] + d_old.deep_model()[0][j]) &&
+            (d.deep_model()[i][j] != INF@ ==> d.deep_model()[i][j] <= d.deep_model()[i][0] + d.deep_model()[0][j]) &&
+            triangle_inequality(d.deep_model(), n@, i, j, k)
+    }
+    //   i!=0 && j==0 && k!=0
+    
+
+    // i!=0 && 
+    // proof_assert! {
+    //     forall<i:Int, j:Int, k:Int>
+    //         1 <= i && i < n@ &&
+    //         1 <= j && j < n@ &&
+    //         k == 0 ==>
+    //         triangle_inequality(d_old.deep_model(), n@, i, j, 0) &&
+    //         d_old.deep_model()[0][j] != INF@ &&
+    //         (forall<l:Int>
+    //             1 <= l && l < n@ ==>
+    //             d_old.deep_model()[0][l] <= 0 &&
+    //             d_old.deep_model()[0][j] <= d_old.deep_model()[0][l] + d_old.deep_model()[l][j] &&
+    //             d_old.deep_model()[0][j] <= d_old.deep_model()[l][j]
+    //         ) &&
+    //         d_old.deep_model()[0][j] <= d.deep_model()[0][j]
+            
+    // }
+    // proof_assert! {
+    //     forall<i:Int, j:Int, k:Int>
+    //         i == 0 &&
+    //         1 <= j && j < n@ &&
+    //         1 <= k && k < n@ &&
+    //         d.deep_model()[0][k] != 0 ==>
+    //         exists<l:Int>
+    //             0 < l && l < n@ &&
+    //             d.deep_model()[0][k] == d.deep_model()[l][k] &&
+    //             d.deep_model()[0][j] <= d.deep_model()[l][j] &&
+    //             triangle_inequality(d.deep_model(), n@, l, j, k) && // e_{l,j} <= e_{l,k} + e_{k,j}
+    //             // d[l][j] <= d[0][k] + d[k][j] から d[l0[j] <= d[0][k] + d[k][j] を言いたい
+    //             (d.deep_model()[0][j] == INF@ ==> d.deep_model()[l][j] == INF@) &&
+    //             (d.deep_model()[l][j] == INF@ ==> d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@) && // the case of INF
+    //             (d.deep_model()[0][j] == INF@ ==> ((d.deep_model()[l][j] == INF@) && (d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@))) &&
+    //             (d.deep_model()[0][j] == INF@ ==> (((d.deep_model()[l][j] == INF@) && (d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@))  ==> (d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@)))
+    // };
+
+    // lem_for_down(d, n);
+
+    // proof_assert! {
+    //     forall<i:Int, j:Int, k:Int>
+    //         0 < j && j < n@ &&
+    //         0 < k && k < n@ &&
+    //         d.deep_model()[0][k] != 0 ==>
+    //         d.deep_model()[0][j] == INF@ ==> ((d.deep_model()[0][k] == INF@ || d.deep_model()[k][j] == INF@))
+    // };
+
+    // proof_assert! {
+    //     forall<i:Int, j:Int, k:Int>
+    //         0 < j && j < n@ &&
+    //         0 < k && k < n@ &&
+    //         d.deep_model()[0][k] != 0 ==>
+    //         exists<l:Int>
+    //             0 < l && l < n@ &&
+    //             d.deep_model()[0][k] == d.deep_model()[l][k] &&
+    //             triangle_inequality(d.deep_model(), n@, l, j, k) && // e_{l,j} <= e_{l,k} + e_{k,j}
+    //             d.deep_model()[0][j] <= d.deep_model()[l][j] &&
+    //             // d[l][j] <= d[0][k] + d[k][j] から d[l0[j] <= d[0][k] + d[k][j] を言いたい
+    //             (d.deep_model()[l][j] != INF@ ==> d.deep_model()[l][j] <= d.deep_model()[0][k] + d.deep_model()[k][j]) && // the case of not INF
+    //             (d.deep_model()[l][j] != INF@ ==> d.deep_model()[0][j] <= d.deep_model()[0][k] + d.deep_model()[k][j]) &&
+    //             (d.deep_model()[l][j] != INF@ ==> d.deep_model()[0][j] != INF@)
+    // };
 
     // proof_assert! {
     //     forall<i:Int, j:Int, k:Int>
