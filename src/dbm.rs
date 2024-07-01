@@ -205,3 +205,25 @@ pub fn check_is_canonical(dbm: &Vec<Vec<i64>>) -> bool {
 
     true
 }
+
+// 小さな具体例で確認
+// [[0, 0, 0],
+//  [5, 0, 1],
+//  [3, 0, 0]] 
+// はcanonical formではないが、
+// [[0, 0, 0],
+//  [4, 0, 1],
+//  [3, 0, 0]] 
+// はcanonical formとなることをチェック
+// ※ 具体的なケースを渡すには、requires節のようにして渡す必要がある。
+#[requires(is_dbm(v.deep_model(), 3))]
+#[requires(v.deep_model()[0][0] == 0 && v.deep_model()[0][1] == 0 && v.deep_model()[0][2] == 0)]
+#[requires(v.deep_model()[1][0] == 5 && v.deep_model()[1][1] == 0 && v.deep_model()[1][2] == 1)]
+#[requires(v.deep_model()[2][0] == 3 && v.deep_model()[2][1] == 0 && v.deep_model()[2][2] == 0)]
+#[ensures(is_canonical((^v).deep_model(), (^v)@.len()))]
+fn test(v: &mut Vec<Vec<i32>>) {
+    proof_assert! { v@.len() == 3 };
+    proof_assert! { is_dbm(v.deep_model(), v@.len()) };
+    proof_assert! { !is_canonical(v.deep_model(), v@.len()) };
+    v[1][0] = 4;
+}
