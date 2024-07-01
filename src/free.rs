@@ -1,5 +1,5 @@
 use creusot_contracts::*;
-use crate::{BOUND, INF, MAX_NODE};
+use crate::{INF, MAX_NODE};
 use crate::dbm::*;
 
 // x==2 のケース

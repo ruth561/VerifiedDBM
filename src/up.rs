@@ -1,5 +1,5 @@
 use creusot_contracts::*;
-use crate::{BOUND, INF, MAX_NODE};
+use crate::{INF, MAX_NODE};
 use crate::dbm::*;
 
 // 第0列の1行目からn行目までをINFで初期化する操作

@@ -1,16 +1,6 @@
 use creusot_contracts::*;
 use crate::{BOUND, INF};
 
-#[logic]
-#[open]
-pub fn validx(n: Int, i: Int, j: Int, k: Int) -> bool {
-    pearlite! {
-        0 <= i && i < n &&
-        0 <= j && j < n &&
-        0 <= k && k < n
-    }
-}
-
 // 与えられた行列の形が nxn であること
 // 対角成分がすべて0であること
 // 各clockの値は正の値であること、つまりD[0][i]の値は非正であること
@@ -216,6 +206,7 @@ pub fn check_is_canonical(dbm: &Vec<Vec<i64>>) -> bool {
 //  [3, 0, 0]] 
 // はcanonical formとなることをチェック
 // ※ 具体的なケースを渡すには、requires節のようにして渡す必要がある。
+#[test]
 #[requires(is_dbm(v.deep_model(), 3))]
 #[requires(v.deep_model()[0][0] == 0 && v.deep_model()[0][1] == 0 && v.deep_model()[0][2] == 0)]
 #[requires(v.deep_model()[1][0] == 5 && v.deep_model()[1][1] == 0 && v.deep_model()[1][2] == 1)]

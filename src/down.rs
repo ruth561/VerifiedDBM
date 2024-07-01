@@ -108,7 +108,7 @@ fn lem_for_down_001_1(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize) {
             j == 0 &&
             1 <= k && k < n@ &&
             d.deep_model()[0][k] != 0 ==>
-            (exists<l:Int>
+            exists<l:Int>
                 1 <= l && l < n@ &&
                 d.deep_model()[0][k] == d.deep_model()[l][k] &&
                 triangle_inequality(d.deep_model(), n@, l, 0, k) &&
@@ -118,7 +118,6 @@ fn lem_for_down_001_1(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize) {
                 (d.deep_model()[l][0] == INF@ ==> 0 <= d.deep_model()[l][k] + d.deep_model()[k][0]) &&
                 (d.deep_model()[l][0] != INF@ ==> 0 <= d.deep_model()[l][k] + d.deep_model()[k][0]) &&
                 0 <= d.deep_model()[l][k] + d.deep_model()[k][0]
-            )
     };
 }
 
@@ -170,9 +169,9 @@ fn lem_for_down_011_0(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize) {}
     forall<j:Int, k:Int>
         1 <= j && j < n@ &&
         1 <= k && k < n@ ==>
-        (forall<l:Int>
+        forall<l:Int>
             1 <= l && l < n@ ==>
-            triangle_inequality(d.deep_model(), n@, l, j, k))
+            triangle_inequality(d.deep_model(), n@, l, j, k)
 )]
 fn lem_for_lem_for_down_011_1(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize) {
     lem_for_down_111(d, d_old, n);
@@ -197,14 +196,13 @@ fn lem_for_down_011_1(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize) {
             1 <= j && j < n@ &&
             1 <= k && k < n@ &&
             d.deep_model()[0][k] != 0 ==>
-            (exists<l:Int>
+            exists<l:Int>
                 1 <= l && l < n@ &&
                 d.deep_model()[0][k] == d.deep_model()[l][k] &&
                 triangle_inequality(d.deep_model(), n@, l, j, k) &&
                 d.deep_model()[0][j] <= d.deep_model()[l][j] &&
-                triangle_inequality(d.deep_model(), n@, i, j, k))
+                triangle_inequality(d.deep_model(), n@, i, j, k)
     }
-    
 }
 
 #[requires(is_canonical(d_old.deep_model(), n@))]
@@ -381,7 +379,7 @@ pub fn down(d: &mut Vec<Vec<i64>>, n: usize) {
     //    ...
     //  [  A,  C, ... ,  C]]
     // #[invariant(is_dbm(d.deep_model(), n@))]
-    #[invariant((2 <= n@))]
+    #[invariant(2 <= n@)]
     #[invariant(d@.len() == n@)]
     #[invariant(forall<i:Int> 0 <= i && i < n@ ==> d.deep_model()[i].len() == n@)]
     #[invariant(forall<i:Int> 0 <= i && i < n@ ==> d.deep_model()[i][i] == 0)]
