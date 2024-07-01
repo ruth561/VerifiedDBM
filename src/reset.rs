@@ -2,6 +2,35 @@ use creusot_contracts::*;
 use crate::{BOUND, INF, MAX_NODE};
 use crate::dbm::*;
 
+// resetの処理の前後におけるDBMの関係性を示す述語
+// x行とx列の値が更新され、それ以外の値はd_oldのまま
+// [[---, ???, ... , ---],
+//  [???,   0, ... , ???],
+//  [---, ???, ... , ---],
+//    ...
+//  [---, ???, ... , ---]]
+// 変化に関しては、x行目は
+#[predicate]
+fn reset_precondition(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize) -> bool {
+    pearlite! {
+        (forall<i:Int, j:Int>
+            0 <= i && i < n@ && i != x@ &&
+            0 <= j && j < n@ && j != x@ ==>
+            d.deep_model()[i][j] == d_old.deep_model()[i][j]) &&
+        (forall<i:Int>
+            0 <= i && i < n@ && i != x@ ==>
+            (d.deep_model()[0][i] + m@ >= BOUND@ ==> d.deep_model()[x@][i] == INF@) &&
+            (d.deep_model()[0][i] + m@ <  BOUND@ ==> d.deep_model()[x@][i] == d.deep_model()[0][i] + m@)) &&
+        (forall<i:Int>
+            0 <= i && i < n@ && i != x@ ==>
+            (d.deep_model()[i][0] == INF@         ==> d.deep_model()[i][x@] == INF@) &&
+            (d.deep_model()[i][0] - m@ <= -BOUND@ ==> d.deep_model()[i][x@] == -BOUND@ + 1) &&
+            (-BOUND@ < d.deep_model()[i][0] - m@ && d.deep_model()[i][0] - m@ < BOUND@ ==> d.deep_model()[i][x@] == d.deep_model()[i][0] - m@)) &&
+        d.deep_model()[x@][x@] == d_old.deep_model()[x@][x@]
+    }
+}
+
+
 #[open]
 #[requires(2 <= n@ && n@ < MAX_NODE@)]
 #[requires(1 <= x@ && x@ < n@)] // ゼロを書き換えるような使い方はしない
