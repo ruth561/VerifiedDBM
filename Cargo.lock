@@ -53,7 +53,9 @@ dependencies = [
 
 [[package]]
 name = "creusot-contracts"
-version = "0.1.0"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce81f64a6f9a3e29a676f35267e5108ee07299c32fb04ea3be9d50ff1fe07bcb"
 dependencies = [
  "creusot-contracts-dummy",
  "creusot-contracts-proc",
@@ -62,14 +64,18 @@ dependencies = [
 
 [[package]]
 name = "creusot-contracts-dummy"
-version = "0.1.0"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e589fd3e9846f65ae3c18f5b6c51eafa9fe6bafe473fc5894e067333c7affed8"
 dependencies = [
  "quote",
 ]
 
 [[package]]
 name = "creusot-contracts-proc"
-version = "0.1.0"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca1b6addccf1f6f9dc6f5c31280ca8f40535ee31976a85103373b4ad16f8a0b0"
 dependencies = [
  "pearlite-syn",
  "proc-macro2",
@@ -250,7 +256,9 @@ dependencies = [
 
 [[package]]
 name = "pearlite-syn"
-version = "0.1.0"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15e3083dfa80aedb67b392087bd8027a9bb5435eb4f3703d02ca6a11e1c81209"
 dependencies = [
  "proc-macro2",
  "quote",
