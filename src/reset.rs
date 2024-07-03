@@ -276,7 +276,6 @@ fn lem_for_reset_110(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize, x: usiz
     }
 }
 
-
 #[requires(is_canonical(d_old.deep_model(), n@))]
 #[requires(is_dbm(d.deep_model(), n@))]
 #[requires(1 <= x@ && x@ < n@)]
@@ -309,6 +308,21 @@ fn lem_for_reset_111(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize, x: usiz
 #[requires(1 <= x@ && x@ < n@)] // ゼロを書き換えるような使い方はしない
 #[requires(0 <= m@ && m@ < BOUND@)] // 更新する時刻は上限を超えない範囲であり、しかも正の値となる
 #[requires(is_canonical(d.deep_model(), n@))]
+#[ensures(
+    forall<i:Int, j:Int>
+        0 <= i && i < n@ && i != x@ &&
+        0 <= j && j < n@ && j != x@ ==>
+        (^d).deep_model()[i][j] == (*d).deep_model()[i][j]
+)]
+#[ensures(
+    forall<i:Int>
+        0 <= i && i < n@ && i != x@ ==>
+        ((*d).deep_model()[0][i] == INF@ ==> (^d).deep_model()[x@][i] == INF@) &&
+        ((*d).deep_model()[0][i] != INF@ ==> (^d).deep_model()[x@][i] == (*d).deep_model()[0][i] + m@) &&
+        ((*d).deep_model()[i][0] == INF@ ==> (^d).deep_model()[i][x@] == INF@) &&
+        ((*d).deep_model()[i][0] != INF@ ==> (^d).deep_model()[i][x@] == (*d).deep_model()[i][0] - m@)
+)]
+#[ensures((^d).deep_model()[x@][x@] == (*d).deep_model()[x@][x@])]
 #[ensures(is_canonical((^d).deep_model(), n@))]
 pub fn reset(d: &mut Vec<Vec<i64>>, n: usize, x: usize, m: i64) {
     let d_old = snapshot! { d };
