@@ -228,6 +228,34 @@ fn lem_for_reset_101(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize, x: usiz
     }
 }
 
+
+
+
+#[requires(is_canonical(d_old.deep_model(), n@))]
+#[requires(is_dbm(d.deep_model(), n@))]
+#[requires(1 <= x@ && x@ < n@)]
+#[requires(0 <= m@ && m@ < BOUND@)]
+#[requires(reset_precondition(d, d_old, n, x, m))]
+#[ensures(
+    forall<i:Int, j:Int, k:Int>
+        0 <= i && i < n@ && i != x@ &&
+        0 <= j && j < n@ && j != x@ &&
+        0 <= k && k < n@ && k != x@ ==>
+        triangle_inequality(d.deep_model(), n@, i, j, k)
+)]
+fn lem_for_reset_111(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize, x: usize, m: i64) {
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            0 <= i && i < n@ && i != x@ &&
+            0 <= j && j < n@ && j != x@ &&
+            0 <= k && k < n@ && k != x@ ==>
+            triangle_inequality(d_old.deep_model(), n@, i, j, k) &&
+            d.deep_model()[i][j] == d_old.deep_model()[i][j] &&
+            d.deep_model()[i][k] == d_old.deep_model()[i][k] &&
+            d.deep_model()[k][j] == d_old.deep_model()[k][j]
+    }
+}
+
 // 処理に失敗したらfalseを返す。例えば、処理の途中でオーバーフローが起きそうなときなど。
 // 正常に処理が完了すればtrueを返す。
 #[open]
@@ -316,6 +344,8 @@ pub fn reset(d: &mut Vec<Vec<i64>>, n: usize, x: usize, m: i64) -> bool {
     pearlite! { lem_for_reset_011(&d, &d_old, n, x, m) }; // i==x && j!=x && k!=x
     pearlite! { lem_for_reset_100(&d, &d_old, n, x, m) }; // i!=x && j==x && k==x
     pearlite! { lem_for_reset_101(&d, &d_old, n, x, m) }; // i!=x && j==x && k!=x
+
+    pearlite! { lem_for_reset_111(&d, &d_old, n, x, m) }; // i!=x && j!=x && k!=x
 
     // i==x && j==x && k!=x
     // ここむり！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
