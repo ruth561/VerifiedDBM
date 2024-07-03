@@ -46,10 +46,10 @@ $ cp /path/to/creusot/rust-toolchain ./
 To link this repository with Creusot, replace the following dependency in `Cargo.toml`:
 
 ```toml
-...
+[...]
 [dependencies]
 creusot-contracts = { path = "/path/to/creusot/creusot-contracts" }
-...
+[...]
 ```
 
 Now, all necessary procedures are completed! To perform proofs for each DBM operation, please execute the following command:
