@@ -156,6 +156,78 @@ fn lem_for_reset_011(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize, x: usiz
     }
 }
 
+#[requires(is_canonical(d_old.deep_model(), n@))]
+#[requires(is_dbm(d.deep_model(), n@))]
+#[requires(1 <= x@ && x@ < n@)]
+#[requires(0 <= m@ && m@ < BOUND@)]
+#[requires(reset_precondition(d, d_old, n, x, m))]
+#[ensures(
+    forall<i:Int, j:Int, k:Int>
+        0 <= i && i < n@ && i != x@ &&
+        j == x@ &&
+        k == x@ ==>
+        triangle_inequality(d.deep_model(), n@, i, j, k)
+)]
+fn lem_for_reset_100(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize, x: usize, m: i64) {}
+
+#[requires(is_canonical(d_old.deep_model(), n@))]
+#[requires(1 <= x@ && x@ < n@)]
+#[ensures(
+    forall<i:Int, k:Int>
+        0 <= i && i < n@ && i != x@ &&
+        0 <= k && k < n@ && k != x@ ==>
+        triangle_inequality(d_old.deep_model(), n@, i, 0, k)
+)]
+fn lem_for_lem_for_reset_101(d_old: &Vec<Vec<i64>>, n: usize, x: usize) {}
+
+#[requires(is_canonical(d_old.deep_model(), n@))]
+#[requires(is_dbm(d.deep_model(), n@))]
+#[requires(1 <= x@ && x@ < n@)]
+#[requires(0 <= m@ && m@ < BOUND@)]
+#[requires(reset_precondition(d, d_old, n, x, m))]
+#[ensures(
+    forall<i:Int, j:Int, k:Int>
+        0 <= i && i < n@ && i != x@ &&
+        j == x@ &&
+        0 <= k && k < n@ && k != x@ ==>
+        triangle_inequality(d.deep_model(), n@, i, j, k)
+)]
+fn lem_for_reset_101(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize, x: usize, m: i64) {
+    lem_for_lem_for_reset_101(&d_old, n, x);
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            0 <= i && i < n@ && i != x@ &&
+            j == x@ &&
+            0 <= k && k < n@ && k != x@ ==>
+            triangle_inequality(d_old.deep_model(), n@, i, 0, k) &&
+            (d_old.deep_model()[i][0] == INF@ ==> d_old.deep_model()[i][k] == INF@ || d_old.deep_model()[k][0] == INF@)
+    }
+    lem_for_all(&d, &d_old, n, x, m);
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            0 <= i && i < n@ && i != x@ &&
+            j == x@ &&
+            0 <= k && k < n@ && k != x@ ==>
+            (d.deep_model()[i][x@] == INF@ ==> d_old.deep_model()[i][0] == INF@) &&
+            (d_old.deep_model()[i][0] == INF@ ==> d_old.deep_model()[i][k] == INF@ || d_old.deep_model()[k][0] == INF@) &&
+            (d_old.deep_model()[k][0] == INF@ ==> d.deep_model()[k][x@] == INF@) &&
+            (d.deep_model()[i][x@] == INF@ ==> d.deep_model()[i][k] == INF@ || d.deep_model()[k][x@] == INF@)
+    }
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            0 <= i && i < n@ && i != x@ &&
+            j == x@ &&
+            0 <= k && k < n@ && k != x@ ==>
+            triangle_inequality(d_old.deep_model(), n@, i, 0, k) &&
+            (d_old.deep_model()[i][0] != INF@ ==> d_old.deep_model()[i][0] <= d_old.deep_model()[i][k] + d_old.deep_model()[k][0]) &&
+            (d_old.deep_model()[i][0] != INF@ ==> d.deep_model()[i][x@] == d_old.deep_model()[i][0] - m@) &&
+            (d_old.deep_model()[k][0] != INF@ ==> d.deep_model()[k][x@] == d_old.deep_model()[k][0] - m@) &&
+            (d_old.deep_model()[i][0] != INF@ ==> d.deep_model()[i][x@] <= d_old.deep_model()[i][k] + d.deep_model()[k][x@]) &&
+            (d.deep_model()[i][x@] != INF@ ==> d_old.deep_model()[i][0] != INF@) &&
+            (d.deep_model()[i][x@] != INF@ ==> d.deep_model()[i][x@] <= d.deep_model()[i][k] + d.deep_model()[k][x@])
+    }
+}
+
 // 処理に失敗したらfalseを返す。例えば、処理の途中でオーバーフローが起きそうなときなど。
 // 正常に処理が完了すればtrueを返す。
 #[open]
@@ -242,6 +314,8 @@ pub fn reset(d: &mut Vec<Vec<i64>>, n: usize, x: usize, m: i64) -> bool {
     pearlite! { lem_for_reset_001(&d, &d_old, n, x, m) }; // i==x && j==x && k!=x
     pearlite! { lem_for_reset_010(&d, &d_old, n, x, m) }; // i==x && j!=x && k==x
     pearlite! { lem_for_reset_011(&d, &d_old, n, x, m) }; // i==x && j!=x && k!=x
+    pearlite! { lem_for_reset_100(&d, &d_old, n, x, m) }; // i!=x && j==x && k==x
+    pearlite! { lem_for_reset_101(&d, &d_old, n, x, m) }; // i!=x && j==x && k!=x
 
     // i==x && j==x && k!=x
     // ここむり！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
