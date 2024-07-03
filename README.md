@@ -28,28 +28,13 @@ We have verified the following properties for each DBM operation:
 
 ## Getting Started
 
-To use this repository, you will need to have [Creusot](https://github.com/creusot-rs/creusot) installed on your machine. If you haven't installed it yet, refer to the [README.md](https://github.com/creusot-rs/creusot?tab=readme-ov-file#installing-creusot-as-a-user) in the official repository.
+To use this repository, you will need to have [Creusot](https://github.com/creusot-rs/creusot) installed on your machine. If you haven't installed it yet, refer to the [README.md](https://github.com/creusot-rs/creusot?tab=readme-ov-file#installing-creusot-as-a-user) in the official repository. Make sure to install version `0.1.1` of Creusot, either by installing from source ref `v0.1.1` or by downloading the source from the release page. 
 
 Next, clone this repository and then move into to the dbm-creusot directory:
 
 ```
 $ git clone https://github.com/ruth561/VerifiedDBM.git
 $ cd dbm-creusot
-```
-
-Copy the rust-toolchain file from the Creusot repository to this repository:
-
-```
-$ cp /path/to/creusot/rust-toolchain ./
-```
-
-To link this repository with Creusot, replace the following dependency in `Cargo.toml`:
-
-```toml
-[...]
-[dependencies]
-creusot-contracts = { path = "/path/to/creusot/creusot-contracts" }
-[...]
 ```
 
 Now, all necessary procedures are completed! To perform proofs for each DBM operation, please execute the following command:
