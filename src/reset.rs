@@ -228,7 +228,53 @@ fn lem_for_reset_101(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize, x: usiz
     }
 }
 
+#[requires(is_canonical(d_old.deep_model(), n@))]
+#[requires(1 <= x@ && x@ < n@)]
+#[ensures(
+    forall<i:Int, j:Int>
+        0 <= i && i < n@ && i != x@ &&
+        0 <= j && j < n@ && j != x@ ==>
+        triangle_inequality(d_old.deep_model(), n@, i, j, 0) &&
+        (d_old.deep_model()[i][j] == INF@ ==> d_old.deep_model()[i][0] == INF@ || d_old.deep_model()[0][j] == INF@) &&
+        (d_old.deep_model()[i][j] != INF@ ==> d_old.deep_model()[i][j] <= d_old.deep_model()[i][0] + d_old.deep_model()[0][j])
+)]
+fn lem_for_lem_for_reset_110(d_old: &Vec<Vec<i64>>, n: usize, x: usize) {}
 
+#[requires(is_canonical(d_old.deep_model(), n@))]
+#[requires(is_dbm(d.deep_model(), n@))]
+#[requires(1 <= x@ && x@ < n@)]
+#[requires(0 <= m@ && m@ < BOUND@)]
+#[requires(reset_precondition(d, d_old, n, x, m))]
+#[ensures(
+    forall<i:Int, j:Int, k:Int>
+        0 <= i && i < n@ && i != x@ &&
+        0 <= j && j < n@ && j != x@ &&
+        k == x@ ==>
+        triangle_inequality(d.deep_model(), n@, i, j, k)
+)]
+fn lem_for_reset_110(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize, x: usize, m: i64) {
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            0 <= i && i < n@ && i != x@ &&
+            0 <= j && j < n@ && j != x@ &&
+            k == x@ ==>
+            (d_old.deep_model()[i][0] == INF@ ==> d.deep_model()[i][x@] == INF@) &&
+            (d_old.deep_model()[i][0] != INF@ ==> d.deep_model()[i][x@] == d_old.deep_model()[i][0] - m@) &&
+            (d_old.deep_model()[0][j] == INF@ ==> d.deep_model()[x@][j] == INF@) &&
+            (d_old.deep_model()[0][j] != INF@ ==> d.deep_model()[x@][j] == d_old.deep_model()[0][j] + m@)
+    }
+    lem_for_lem_for_reset_110(&d_old, n, x);
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            0 <= i && i < n@ && i != x@ &&
+            0 <= j && j < n@ && j != x@ &&
+            k == x@ ==>
+            (d_old.deep_model()[i][j] == INF@ ==> d_old.deep_model()[i][0] == INF@ || d_old.deep_model()[0][j] == INF@) &&
+            (d.deep_model()[i][j] == INF@ ==> d.deep_model()[i][x@] == INF@ || d.deep_model()[x@][j] == INF@) &&
+            (d_old.deep_model()[i][j] != INF@ ==> d_old.deep_model()[i][j] <= d_old.deep_model()[i][0] + d_old.deep_model()[0][j]) &&
+            (d.deep_model()[i][j] != INF@ ==> d.deep_model()[i][j] <= d.deep_model()[i][x@] + d.deep_model()[x@][j])
+    }
+}
 
 
 #[requires(is_canonical(d_old.deep_model(), n@))]
@@ -263,7 +309,8 @@ fn lem_for_reset_111(d: &Vec<Vec<i64>>, d_old: &Vec<Vec<i64>>, n: usize, x: usiz
 #[requires(1 <= x@ && x@ < n@)] // ゼロを書き換えるような使い方はしない
 #[requires(0 <= m@ && m@ < BOUND@)] // 更新する時刻は上限を超えない範囲であり、しかも正の値となる
 #[requires(is_canonical(d.deep_model(), n@))]
-pub fn reset(d: &mut Vec<Vec<i64>>, n: usize, x: usize, m: i64) -> bool {
+#[ensures(is_canonical((^d).deep_model(), n@))]
+pub fn reset(d: &mut Vec<Vec<i64>>, n: usize, x: usize, m: i64) {
     let d_old = snapshot! { d };
 
     // #[invariant(is_dbm(d.deep_model(), n@))]
@@ -299,18 +346,18 @@ pub fn reset(d: &mut Vec<Vec<i64>>, n: usize, x: usize, m: i64) -> bool {
         if i != x {
             if d[0][i] == INF {
                 d[x][i] = INF;
-            } else if -BOUND < d[0][i] && d[0][i] < BOUND {
+            } else {
+                // this condition holds, and overflow can't be caused.
+                proof_assert! { -BOUND@ < d.deep_model()[0][i@] && d.deep_model()[0][i@] <= 0 };
                 d[x][i] = d[0][i] + m;
-            } else { // overflow
-                return false;
             }
     
             if d[i][0] == INF {
                 d[i][x] = INF;
-            } else if -BOUND < d[0][i] && d[0][i] < BOUND {
+            } else {
+                // this condition holds, and overflow can't be caused.
+                proof_assert! { 0 <= d.deep_model()[i@][0] && d.deep_model()[i@][0] < BOUND@ };
                 d[i][x] = d[i][0] - m;
-            } else { // overflow
-                return false;
             }
         }
     }
@@ -344,27 +391,15 @@ pub fn reset(d: &mut Vec<Vec<i64>>, n: usize, x: usize, m: i64) -> bool {
     pearlite! { lem_for_reset_011(&d, &d_old, n, x, m) }; // i==x && j!=x && k!=x
     pearlite! { lem_for_reset_100(&d, &d_old, n, x, m) }; // i!=x && j==x && k==x
     pearlite! { lem_for_reset_101(&d, &d_old, n, x, m) }; // i!=x && j==x && k!=x
-
+    pearlite! { lem_for_reset_110(&d, &d_old, n, x, m) }; // i!=x && j!=x && k==x
     pearlite! { lem_for_reset_111(&d, &d_old, n, x, m) }; // i!=x && j!=x && k!=x
 
-    // i==x && j==x && k!=x
-    // ここむり！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
-    // 以降もそれぞれ場合分けしながらどうにか証明していく、、
-    // // i==x && j!=x && k==x
-    //
-    // // i==x && j!=x && k!=x
-    // 
-    // // i==x のケースすべて
-    //
+    proof_assert! {
+        forall<i:Int, j:Int, k:Int>
+            0 <= i && i < n@ && i != x@ &&
+            0 <= j && j < n@ && j != x@ &&
+            0 <= k && k < n@ && k != x@ ==>
+            triangle_inequality(d.deep_model(), n@, i, j, k)
+    }
 
-    // // i!=xのケース
-    // // i!=x && j==x && k==x
-    // 
-    // // i!=x && j!=x && k==x
-    // 
-    // // i!=x && j==x && k!=x
-    // 
-    // // i!=x && j!=x && k!=x
-    // 
-    true
 }
